@@ -18,14 +18,19 @@ df <- tibble(no=1:8,
              incidence.ph.lo = c(.263,1.125,1.536,.526,0.034,0.218,0.335,0.036),
              incidence.ph.hi = c(.535,2.193,2.307,2.265,0.165,0.749,0.688,0.834))
 
-# data : Hazard Ratio in seronegatives by time period (table S23), all studies, MI MO used.
-df.t <- tibble(Year = rep(c("Active Phase","Year 1 of Hospital Phase","Year 2 of Hospital Phase", "Beyond Year 2 of Hospital Phase"),2),
-               randomisation = rep(c("vacc","control"),each=4),
-               serostatus = "neg",
-               outcome = "hosp",
-               n = c(14, 15.1, 16.7, 18.4,9.7,2.9,4.2,8.5),
-               N = c(rep(375.1,4),rep(207.2,4)))
-
+# Cumulative proportion of 9-16y olds hospitalised with Dengue over time (0m - 60m). Digitalised from Sridhar Figure 3
+df.time <- tibble(time = rep(c(0,6,12,18,24,30,36,42,48,54,60),4),
+                  randomisation = c(rep("vacc",11*2),rep("control",11*2)),
+                  serostatus = rep(c(rep("pos",11),rep("neg",11)),2),
+                  incidence = c(0,0.031,0.051,0.061,0.113,0.153,0.184,0.235,0.276,0.307,0.368,
+                                0,0.061,0.143,0.205,0.348,0.512,0.757,0.982,1.289,1.432,1.535,
+                                0,0.143,0.307,0.573,0.982,1.125,1.350,1.514,1.678,1.739,1.862,
+                                0,0.082,0.164,0.399,0.471,0.522,0.583,0.696,0.757,0.757,1.033),
+                  No.at.Risk =c(1503,1490,1462,1453,1447,1434,1422,1403,1351,1284,1226,
+                                375,374,368,366,364,361,358,350,339,322,311,
+                                730,725,705,699,695,689,688,686,658,615,592,
+                                207,207,201,199,199,195,194,192,185,174,167))
+                  
 # plot data
 p.data <- df %>% ggplot(aes(x= serostatus, y = incidence.ph.mid, ymin = incidence.ph.lo, ymax = incidence.ph.hi,color=randomisation)) +
   geom_linerange(position=position_dodge(width = 0.5)) +
@@ -92,6 +97,7 @@ res %>% filter(outcome != "Averted") %>%
     geom_pointrange(position=position_dodge(width = 0.5)) + 
     coord_flip() + ylab("Number of cases") + 
     theme_bw()
+ggsave(filename = "Pics\\Fig2_Data.tiff",unit="cm", width = 17, height = 7, compression = "lzw", dpi = 300)
 
 # proportion seropos
 CasesAverted(seroPrevalence = .85, sensitivity = 1, specificity = 0, cohortSize=830000, df.tmp = df, outcm = "hosp") %>%
@@ -102,6 +108,27 @@ CasesAverted(seroPrevalence = .85, sensitivity = 1, specificity = 0, cohortSize=
                                                      lo = quantile(value, probs = 0.025),
                                                      hi = quantile(value, probs = 0.975)) 
 
+#calculate  proportion of cases attributeable to seronegative vaccinees
+df.prop = tibble(serostatus = c("neg","pos"),
+                 prop = c(0.15,.85))
+df.time %>% merge(df.prop) %>% 
+  mutate(cases = incidence*prop*830000/100) %>% 
+  select(serostatus:randomisation, cases) %>%
+  spread(serostatus, cases) %>%
+  mutate(propSeroNeg = neg/(pos+neg)) %>%
+  ggplot(aes(x=time, y=propSeroNeg, color=randomisation))+
+    geom_line() + 
+    coord_cartesian(ylim=c(0,1)) + 
+    scale_y_continuous(labels = scales::percent) +
+    theme_bw() +
+    xlab("month") + ylab("proportion of hospitalised cases\nfrom dengue naive vaccinees")
+ggsave(filename = "Pics\\Fig3_Data.tiff",unit="cm", width = 17, height = 7, compression = "lzw", dpi = 300)
 
-#calculate excess cases over time
+#exspected cases over time
+df.time %>% merge(df.prop) %>% 
+  mutate(cases = incidence*prop*830000/100) %>%
+  ggplot(aes(x=time, y=cases, lty=randomisation, color=serostatus))+
+    geom_line()
+  
+
 
