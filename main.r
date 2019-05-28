@@ -99,6 +99,8 @@ res %>% filter(outcome != "Averted") %>%
     theme_bw()
 ggsave(filename = "Pics\\Fig2_Data.tiff",unit="cm", width = 17, height = 7, compression = "lzw", dpi = 300)
 
+
+
 # proportion seropos
 CasesAverted(seroPrevalence = .85, sensitivity = 1, specificity = 0, cohortSize=830000, df.tmp = df, outcm = "hosp") %>%
   mutate(prop_Neg_vac = CasesVaccSeroNeg/CasesVaccTotal) %>%
