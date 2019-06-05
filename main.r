@@ -18,6 +18,9 @@ df <- tibble(no=1:8,
              incidence.ph.lo = c(.263,1.125,1.536,.526,0.034,0.218,0.335,0.036),
              incidence.ph.hi = c(.535,2.193,2.307,2.265,0.165,0.749,0.688,0.834))
 
+#seroprevalence Phil
+sp=.85
+
 # Cumulative proportion of 9-16y olds hospitalised with Dengue over time (0m - 60m). Digitalised from Sridhar Figure 3
 df.time <- tibble(time = rep(c(0,6,12,18,24,30,36,42,48,54,60),4),
                   randomisation = c(rep("vacc",11*2),rep("control",11*2)),
@@ -39,6 +42,50 @@ p.data <- df %>% ggplot(aes(x= serostatus, y = incidence.ph.mid, ymin = incidenc
   coord_flip() + ylab("incidence per 100") +
   labs(y = "Incidence per 100", x = "Serostatus", color = "Randomisation")
 ggsave(filename = "Pics\\Fig1_Data.tiff",p.data ,unit="cm", width = 14, height = 5, compression = "lzw", dpi = 300)
+
+# analyses
+
+#increase in seroneg vaccinees
+1.57/1.09
+#RR in seropo / seroneg controls
+1.88/1.09
+#reduction in seropos vaccinees
+1-0.375/1.88
+
+#cases averted in seropos vacc per 1 seroneg vacc case
+.85*(1.88-.375) / (.15*(1.57-1.09))
+# breakthrough among all hospitalised
+0.85*1.73*.2  / (.85*1.73*.2 + .15*1.44)
+#proportion of excess cases among the cases in seronegatives
+1-1.09/1.57
+
+#calculate  proportion of cases attributeable to seronegative vaccinees
+df.prop = tibble(serostatus = c("neg","pos"),
+                 prop = c(0.15,.85))
+df.time %>% merge(df.prop) %>% 
+  mutate(cases = incidence*prop*830000/100) %>% 
+  select(serostatus:randomisation, cases) %>%
+  spread(serostatus, cases) %>%
+  mutate(propSeroNeg = neg/(pos+neg)) %>%
+  filter(randomisation=="vacc") %>%
+  ggplot(aes(x=time, y=propSeroNeg))+
+  geom_line() + 
+  coord_cartesian(ylim=c(0,1)) + 
+  scale_y_continuous(labels = scales::percent) +
+  theme_bw() +
+  xlab("Month since vaccination") + ylab("proportion of\nhospitalised cases\nattributeable to\ndengue naive vaccinees")
+ggsave(filename = "Pics\\Fig3_Data.tiff",unit="cm", width = 17, height = 7, compression = "lzw", dpi = 300)
+
+
+
+##################### end of numbers in manuscript # start of previous work
+
+
+
+
+
+
+
 
 # sample from lognormal distribution in which the 50%, 2.5% and 97.5% quanitles fit the observed mean, CI.lo and CI.hi respectively
 LnfitSample <- function(input= c(mean=1, lo=.5, hi=2), N=10000){
@@ -110,27 +157,5 @@ CasesAverted(seroPrevalence = .85, sensitivity = 1, specificity = 0, cohortSize=
                                                      lo = quantile(value, probs = 0.025),
                                                      hi = quantile(value, probs = 0.975)) 
 
-#calculate  proportion of cases attributeable to seronegative vaccinees
-df.prop = tibble(serostatus = c("neg","pos"),
-                 prop = c(0.15,.85))
-df.time %>% merge(df.prop) %>% 
-  mutate(cases = incidence*prop*830000/100) %>% 
-  select(serostatus:randomisation, cases) %>%
-  spread(serostatus, cases) %>%
-  mutate(propSeroNeg = neg/(pos+neg)) %>%
-  ggplot(aes(x=time, y=propSeroNeg, color=randomisation))+
-    geom_line() + 
-    coord_cartesian(ylim=c(0,1)) + 
-    scale_y_continuous(labels = scales::percent) +
-    theme_bw() +
-    xlab("month") + ylab("proportion of hospitalised cases\nfrom dengue naive vaccinees")
-ggsave(filename = "Pics\\Fig3_Data.tiff",unit="cm", width = 17, height = 7, compression = "lzw", dpi = 300)
-
-#exspected cases over time
-df.time %>% merge(df.prop) %>% 
-  mutate(cases = incidence*prop*830000/100) %>%
-  ggplot(aes(x=time, y=cases, lty=randomisation, color=serostatus))+
-    geom_line()
-  
 
 
