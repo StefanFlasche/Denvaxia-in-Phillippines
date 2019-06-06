@@ -47,17 +47,23 @@ ggsave(filename = "Pics\\Fig1_Data.tiff",p.data ,unit="cm", width = 14, height =
 
 #increase in seroneg vaccinees
 1.57/1.09
+.404/.174#severe
 #RR in seropo / seroneg controls
 1.88/1.09
+.48/.174#severe
 #reduction in seropos vaccinees
 1-0.375/1.88
+1-.075/.48#severe
 
 #cases averted in seropos vacc per 1 seroneg vacc case
 .85*(1.88-.375) / (.15*(1.57-1.09))
+.85*(.48-.075) / (.15*(.404-.174))#severe
 # breakthrough among all hospitalised
-0.85*1.73*.2  / (.85*1.73*.2 + .15*1.44)
+0.85*.375  / (.85*.375 + .15*1.57)
+0.85*.075  / (.85*.075 + .15*.404)#severe
 #proportion of excess cases among the cases in seronegatives
 1-1.09/1.57
+1-.174/.404#severe
 
 #calculate  proportion of cases attributeable to seronegative vaccinees
 df.prop = tibble(serostatus = c("neg","pos"),
