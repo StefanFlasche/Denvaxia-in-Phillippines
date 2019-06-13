@@ -74,12 +74,15 @@ df.time %>% merge(df.prop) %>%
   spread(serostatus, cases) %>%
   mutate(propSeroNeg = neg/(pos+neg)) %>%
   filter(randomisation=="vacc") %>%
-  ggplot(aes(x=time, y=propSeroNeg))+
+  mutate(propVaccINduced = propSeroNeg * (1-1.09/1.57)) %>%
+  gather(key = "key", value="prop", -(time:pos)) %>%
+  ggplot(aes(x=time, y=prop, color=key))+ 
   geom_line() + 
   coord_cartesian(ylim=c(0,1)) + 
   scale_y_continuous(labels = scales::percent) +
+    scale_color_discrete(name = "", labels = c("seronegative vaccinees", "vaccine induced"))+
   theme_bw() +
-  xlab("Month since vaccination") + ylab("proportion of\nhospitalised cases\nattributeable to\ndengue naive vaccinees")
+  xlab("Month since vaccination") + ylab("proportion of all\nhospitalised cases")
 ggsave(filename = "Pics\\Fig3_Data.tiff",unit="cm", width = 17, height = 7, compression = "lzw", dpi = 300)
 
 
