@@ -66,6 +66,10 @@ ggsave(filename = "Pics\\Fig1_Data.tiff",p.data ,unit="cm", width = 14, height =
 1-.174/.404#severe
 
 #calculate  proportion of cases attributeable to seronegative vaccinees
+  #proportion of excess cases among the cases in seronegatives by time
+  tmp = 1 - subset(df.time, randomisation=="control" & serostatus=="neg")$incidence / subset(df.time, randomisation=="vacc" & serostatus=="neg")$incidence
+  tmp = tmp * (tmp>0)
+  
 df.prop = tibble(serostatus = c("neg","pos"),
                  prop = c(0.15,.85))
 df.time %>% merge(df.prop) %>% 
@@ -74,7 +78,7 @@ df.time %>% merge(df.prop) %>%
   spread(serostatus, cases) %>%
   mutate(propSeroNeg = neg/(pos+neg)) %>%
   filter(randomisation=="vacc") %>%
-  mutate(propVaccINduced = propSeroNeg * (1-1.09/1.57)) %>%
+  mutate(propVaccINduced = propSeroNeg * tmp) %>%
   gather(key = "key", value="prop", -(time:pos)) %>%
   ggplot(aes(x=time, y=prop, color=key))+ 
   geom_line() + 
