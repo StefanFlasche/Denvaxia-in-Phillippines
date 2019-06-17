@@ -140,7 +140,7 @@ CasesAverted <- function(seroPrevalence = .7, sensitivity = 1, specificity = 0,
 }
 
 # calculate cases exspected and averted in Phillippines
-res <- CasesAverted(seroPrevalence = .85, sensitivity = 1, specificity = 0, cohortSize=830000, df.tmp = df, outcm = "hosp") %>%
+res <- CasesAverted(seroPrevalence = .85, sensitivity = 1, specificity = 0, cohortSize=830000, df.tmp = df, outcm = "severe") %>%
   gather(key, value, -(seroPrevalence:outcm)) %>% 
   group_by(key) %>% summarise(mid = median(value), 
                               lo = quantile(value, probs = 0.025),
@@ -158,7 +158,7 @@ ggsave(filename = "Pics\\Fig2_Data.tiff",unit="cm", width = 17, height = 7, comp
 
 
 # proportion seropos
-CasesAverted(seroPrevalence = .85, sensitivity = 1, specificity = 0, cohortSize=830000, df.tmp = df, outcm = "hosp") %>%
+CasesAverted(seroPrevalence = .85, sensitivity = 1, specificity = 0, cohortSize=830000, df.tmp = df, outcm = "severe") %>%
   mutate(prop_Neg_vac = CasesVaccSeroNeg/CasesVaccTotal) %>%
   mutate(prop_Neg_Novac = CasesNoVaccSeroNeg/CasesNoVaccTotal) %>%
   select("prop_Neg_vac","prop_Neg_Novac") %>%
@@ -166,5 +166,22 @@ CasesAverted(seroPrevalence = .85, sensitivity = 1, specificity = 0, cohortSize=
                                                      lo = quantile(value, probs = 0.025),
                                                      hi = quantile(value, probs = 0.975)) 
 
+#calculate  proportion of cases attributeable to seronegative vaccinees
+df.prop = tibble(serostatus = c("neg","pos"),
+                 prop = c(0.15,.85))
+df.time.plot <- df.time %>% merge(df.prop) %>% 
+  mutate(cases = incidence*prop*830000/100) %>% 
+  select(serostatus:randomisation, cases) %>%
+  spread(serostatus, cases) %>%
+  mutate(propSeroNeg = neg/(pos+neg)) %>%
+  filter(randomisation == "vacc") 
+df.time.plot %>%
+  ggplot(aes(x=time, y=propSeroNeg))+
+    geom_line() + 
+    coord_cartesian(ylim=c(0,1)) + 
+    scale_y_continuous(labels = scales::percent) +
+    theme_bw() +
+    xlab("months since vaccination") + ylab("proportion of\nhospitalised dengue cases\nattributeable to\ndengue naive vaccinees")
+ggsave(filename = "Pics\\Fig3_Data.tiff",unit="cm", width = 12, height = 7, compression = "lzw", dpi = 300)
 
 
