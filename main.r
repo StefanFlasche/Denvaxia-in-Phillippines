@@ -94,7 +94,7 @@ data.time %>%
   geom_area(alpha=.7) + 
   coord_cartesian(ylim=c(0,1)) + 
   scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = c("#009E73","#E69F00","#D55E00"), name = "", labels = c("breakthrough cases in\nseropositive vaccinees\n", "cases in\nseronegative vaccinees\n", "vaccine induced cases in\nseronegative vaccinees\n"))+
+  scale_fill_manual(values = c("#009E73","#E69F00","#D55E00"), name = "", labels = c("breakthrough cases in\nseropositive vaccinees\n", "cases in\nseronegative vaccinees\n", "vaccine attributable cases in\nseronegative vaccinees\n"))+
   theme_bw() +
   xlab("Month since vaccination") + ylab("proportion of all\nhospitalised cases")
 ggsave(filename = "Pics\\Fig_PropCases.tiff",unit="cm", width = 17, height = 7, compression = "lzw", dpi = 300)
