@@ -9,7 +9,7 @@ require(tidyverse)
 # Data --------------------------------------------------------------------
 
 # data: cumulative incidence over 5yrs observed in the trial and its stratification into 
-#       seropositive and seronegative using PRNT50 with multiple imputation (in per 100). from Table S10
+#       seropositive and seronegative using PRNT50 with multiple imputation (in per 100). from Shridar Table S10
 df <- tibble(no=1:8,
              randomisation = c("vacc","vacc","control","control","vacc","vacc","control","control"),
              serostatus = c("pos","neg","pos","neg","pos","neg","pos","neg"),
@@ -41,9 +41,10 @@ p.data <- df %>% ggplot(aes(x= serostatus, y = incidence.ph.mid, ymin = incidenc
   facet_grid(.~outcome, scales = "free") +
   coord_flip() + ylab("incidence per 100") +
   labs(y = "Incidence per 100", x = "Serostatus", color = "Randomisation")
-ggsave(filename = "Pics\\Fig1_Data.tiff",p.data ,unit="cm", width = 14, height = 5, compression = "lzw", dpi = 300)
+ggsave(filename = "Pics\\Fig_Data.tiff",p.data ,unit="cm", width = 14, height = 5, compression = "lzw", dpi = 300)
 
-# analyses
+
+# analyses on cumulative 5y estimates
 
 #increase in seroneg vaccinees
 1.57/1.09
@@ -56,136 +57,47 @@ ggsave(filename = "Pics\\Fig1_Data.tiff",p.data ,unit="cm", width = 14, height =
 1-.075/.48#severe
 
 #cases averted in seropos vacc per 1 seroneg vacc case
-.85*(1.88-.375) / (.15*(1.57-1.09))
-.85*(.48-.075) / (.15*(.404-.174))#severe
+sp*(1.88-.375) / ((1-sp)*(1.57-1.09))
+sp*(.48-.075) / ((1-sp)*(.404-.174))#severe
 # breakthrough among all hospitalised
-0.85*.375  / (.85*.375 + .15*1.57)
-0.85*.075  / (.85*.075 + .15*.404)#severe
+sp*.375  / (sp*.375 + (1-sp)*1.57)
+sp*.075  / (sp*.075 + (1-sp)*.404)#severe
 #proportion of excess cases among the cases in seronegatives
 1-1.09/1.57
 1-.174/.404#severe
 
+# proportion of cases averted through vacc
+1 - (sp*.375+(1-sp)*1.57) / (sp*1.88+(1-sp)*1.09)
+1 - (sp*.075+(1-sp)*.404) / (sp*.48+(1-sp)*.174)
+
+
 #calculate  proportion of cases attributeable to seronegative vaccinees
   #proportion of excess cases among the cases in seronegatives by time
-  tmp = 1 - subset(df.time, randomisation=="control" & serostatus=="neg")$incidence / subset(df.time, randomisation=="vacc" & serostatus=="neg")$incidence
-  tmp = tmp * (tmp>0)
+  excess.prop = 1 - subset(df.time, randomisation=="control" & serostatus=="neg")$incidence / subset(df.time, randomisation=="vacc" & serostatus=="neg")$incidence
+  excess.prop = excess.prop * (excess.prop>0)
   
 df.prop = tibble(serostatus = c("neg","pos"),
                  prop = c(0.15,.85))
-df.time %>% merge(df.prop) %>% 
+data.time = df.time %>% merge(df.prop) %>% 
   mutate(cases = incidence*prop*830000/100) %>% 
   select(serostatus:randomisation, cases) %>%
   spread(serostatus, cases) %>%
   mutate(propSeroNeg = neg/(pos+neg)) %>%
   filter(randomisation=="vacc") %>%
-  mutate(propVaccINduced = propSeroNeg * tmp) %>%
-  gather(key = "key", value="prop", -(time:pos)) %>%
-  ggplot(aes(x=time, y=prop, color=key))+ 
-  geom_line() + 
+  mutate(propVaccINduced = propSeroNeg * excess.prop) %>%
+  mutate(propSeroNeg = propSeroNeg - propVaccINduced) %>%
+  mutate(propSeroPos = 1-propSeroNeg-propVaccINduced) %>%
+  gather(key = "key", value="prop", -(time:pos)) 
+data.time$key = factor(data.time$key, levels = c("propSeroPos","propSeroNeg","propVaccINduced"))
+data.time %>%
+  ggplot(aes(x=time, y=prop, fill=key))+ 
+  geom_area(alpha=.7) + 
   coord_cartesian(ylim=c(0,1)) + 
   scale_y_continuous(labels = scales::percent) +
-    scale_color_discrete(name = "", labels = c("seronegative vaccinees", "vaccine induced"))+
+  scale_fill_manual(values = c("#009E73","#E69F00","#D55E00"), name = "", labels = c("breakthrough cases in\nseropositive vaccinees\n", "cases in\nseronegative vaccinees\n", "vaccine induced cases in\nseronegative vaccinees\n"))+
   theme_bw() +
   xlab("Month since vaccination") + ylab("proportion of all\nhospitalised cases")
-ggsave(filename = "Pics\\Fig3_Data.tiff",unit="cm", width = 17, height = 7, compression = "lzw", dpi = 300)
+ggsave(filename = "Pics\\Fig_PropCases.tiff",unit="cm", width = 17, height = 7, compression = "lzw", dpi = 300)
 
-
-
-##################### end of numbers in manuscript # start of previous work
-
-
-
-
-
-
-
-
-# sample from lognormal distribution in which the 50%, 2.5% and 97.5% quanitles fit the observed mean, CI.lo and CI.hi respectively
-LnfitSample <- function(input= c(mean=1, lo=.5, hi=2), N=10000){
-  mean = input[1] %>% as.numeric()
-  lo = input[2] %>% as.numeric()
-  hi = input[3] %>% as.numeric()
-  rlnorm(N, meanlog = log(mean), sdlog = (log(mean/lo) +  log(hi/mean))/2/1.96) %>%
-    return()
-}
-
-
-# Analyses ----------------------------------------------------------
-
-# calculate population impact of test and vaccinate strategy (no test = 100% sens, 0% spec)
-CasesAverted <- function(seroPrevalence = .7, sensitivity = 1, specificity = 0, 
-                         cohortSize=100000, df.tmp = df, outcm = "hosp"){
-  df.tmp = df.tmp %>% filter(outcome == outcm)
-  Inc.SeroPos.Vacc <- df.tmp %>% filter(randomisation=="vacc" & serostatus =="pos") %>% 
-    select(incidence.ph.mid:incidence.ph.hi) %>% LnfitSample()
-  Inc.SeroPos.Cont <- df.tmp %>% filter(randomisation=="control" & serostatus =="pos") %>% 
-    select(incidence.ph.mid:incidence.ph.hi) %>% LnfitSample()
-  Inc.SeroNeg.Vacc <- df.tmp %>% filter(randomisation=="vacc" & serostatus =="neg") %>% 
-    select(incidence.ph.mid:incidence.ph.hi) %>% LnfitSample()
-  Inc.SeroNeg.Cont <- df.tmp %>% filter(randomisation=="control" & serostatus =="neg") %>% 
-    select(incidence.ph.mid:incidence.ph.hi) %>% LnfitSample()
-  
-  CasesNoVaccSeroPos = cohortSize * seroPrevalence * Inc.SeroPos.Cont / 100
-  CasesNoVaccSeroNeg = cohortSize * (1-seroPrevalence) * Inc.SeroNeg.Cont / 100
-  CasesVaccSeroPos = cohortSize * seroPrevalence * Inc.SeroPos.Vacc / 100
-  CasesVaccSeroNeg = cohortSize * (1-seroPrevalence) * Inc.SeroNeg.Vacc / 100
-  
-  CasesAvertedSeroPos = cohortSize * seroPrevalence * sensitivity * (Inc.SeroPos.Cont - Inc.SeroPos.Vacc) / 100
-  CasesAvertedSeroNeg = cohortSize * (1-seroPrevalence) * (1 - specificity) * (Inc.SeroNeg.Cont - Inc.SeroNeg.Vacc) /100
-  
-  df_res <- tibble(seroPrevalence, sensitivity, specificity, outcm, 
-                   CasesNoVaccSeroPos, CasesNoVaccSeroNeg,
-                   CasesNoVaccTotal = CasesNoVaccSeroPos + CasesNoVaccSeroNeg,
-                   CasesVaccSeroPos, CasesVaccSeroNeg,
-                   CasesVaccTotal = CasesVaccSeroPos + CasesVaccSeroNeg,
-                   CasesAvertedSeroPos, CasesAvertedSeroNeg, 
-                   CasesAvertedTotal = CasesAvertedSeroPos + CasesAvertedSeroNeg)
-  return(df_res)
-}
-
-# calculate cases exspected and averted in Phillippines
-res <- CasesAverted(seroPrevalence = .85, sensitivity = 1, specificity = 0, cohortSize=830000, df.tmp = df, outcm = "severe") %>%
-  gather(key, value, -(seroPrevalence:outcm)) %>% 
-  group_by(key) %>% summarise(mid = median(value), 
-                              lo = quantile(value, probs = 0.025),
-                              hi = quantile(value, probs = 0.975)) %>% 
-  mutate(outcome = rep(c("Averted","Control","Vacc"),each=3)) %>%
-  mutate(serostatus = rep(c("Negative", "Positive", "Total"), 3))
-res
-res %>% filter(outcome != "Averted") %>%
-  ggplot(aes(x=serostatus, y=mid, ymin=lo, ymax=hi, color = outcome)) +
-    geom_pointrange(position=position_dodge(width = 0.5)) + 
-    coord_flip() + ylab("Number of cases") + 
-    theme_bw()
-ggsave(filename = "Pics\\Fig2_Data.tiff",unit="cm", width = 17, height = 7, compression = "lzw", dpi = 300)
-
-
-
-# proportion seropos
-CasesAverted(seroPrevalence = .85, sensitivity = 1, specificity = 0, cohortSize=830000, df.tmp = df, outcm = "severe") %>%
-  mutate(prop_Neg_vac = CasesVaccSeroNeg/CasesVaccTotal) %>%
-  mutate(prop_Neg_Novac = CasesNoVaccSeroNeg/CasesNoVaccTotal) %>%
-  select("prop_Neg_vac","prop_Neg_Novac") %>%
-  gather(key, value) %>% group_by(key) %>% summarise(mid = median(value),
-                                                     lo = quantile(value, probs = 0.025),
-                                                     hi = quantile(value, probs = 0.975)) 
-
-#calculate  proportion of cases attributeable to seronegative vaccinees
-df.prop = tibble(serostatus = c("neg","pos"),
-                 prop = c(0.15,.85))
-df.time.plot <- df.time %>% merge(df.prop) %>% 
-  mutate(cases = incidence*prop*830000/100) %>% 
-  select(serostatus:randomisation, cases) %>%
-  spread(serostatus, cases) %>%
-  mutate(propSeroNeg = neg/(pos+neg)) %>%
-  filter(randomisation == "vacc") 
-df.time.plot %>%
-  ggplot(aes(x=time, y=propSeroNeg))+
-    geom_line() + 
-    coord_cartesian(ylim=c(0,1)) + 
-    scale_y_continuous(labels = scales::percent) +
-    theme_bw() +
-    xlab("months since vaccination") + ylab("proportion of\nhospitalised dengue cases\nattributeable to\ndengue naive vaccinees")
-ggsave(filename = "Pics\\Fig3_Data.tiff",unit="cm", width = 12, height = 7, compression = "lzw", dpi = 300)
 
 
