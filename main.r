@@ -96,7 +96,7 @@ data.time %>%
   scale_y_continuous(labels = scales::percent) +
   scale_fill_manual(values = c("#009E73","#E69F00","#D55E00"), name = "", labels = c("breakthrough cases in\nseropositive vaccinees\n", "cases in\nseronegative vaccinees\n", "vaccine attributable cases in\nseronegative vaccinees\n"))+
   theme_bw() +
-  xlab("Month since vaccination") + ylab("proportion of all\nhospitalised cases")
+  xlab("month since first vaccine dose") + ylab("percentage of all\nhospitalised cases")
 ggsave(filename = "Pics\\Fig_PropCases.tiff",unit="cm", width = 17, height = 7, compression = "lzw", dpi = 300)
 
 
