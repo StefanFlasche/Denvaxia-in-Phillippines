@@ -19,7 +19,7 @@ df <- tibble(no=1:8,
              incidence.ph.hi = c(.535,2.193,2.307,2.265,0.165,0.749,0.688,0.834))
 
 #seroprevalence Phil
-sp=.85
+sp=.70
 
 # Cumulative proportion of 9-16y olds hospitalised with Dengue over time (0m - 60m). Digitalised from Sridhar Figure 3
 df.time <- tibble(time = rep(c(0,6,12,18,24,30,36,42,48,54,60),4),
@@ -44,40 +44,56 @@ p.data <- df %>% ggplot(aes(x= serostatus, y = incidence.ph.mid, ymin = incidenc
 ggsave(filename = "Pics\\Fig_Data.tiff",p.data ,unit="cm", width = 14, height = 5, compression = "lzw", dpi = 300)
 
 
-# analyses on cumulative 5y estimates
+### analyses on cumulative 5y estimates
+vph = subset(df, randomisation=="vacc" & serostatus == "pos" & outcome =="hosp")$incidence.ph.mid
+vnh = subset(df, randomisation=="vacc" & serostatus == "neg" & outcome =="hosp")$incidence.ph.mid
+cph = subset(df, randomisation=="control" & serostatus == "pos" & outcome =="hosp")$incidence.ph.mid
+cnh = subset(df, randomisation=="control" & serostatus == "neg" & outcome =="hosp")$incidence.ph.mid
+vps = subset(df, randomisation=="vacc" & serostatus == "pos" & outcome =="severe")$incidence.ph.mid
+vns = subset(df, randomisation=="vacc" & serostatus == "neg" & outcome =="severe")$incidence.ph.mid
+cps = subset(df, randomisation=="control" & serostatus == "pos" & outcome =="severe")$incidence.ph.mid
+cns = subset(df, randomisation=="control" & serostatus == "neg" & outcome =="severe")$incidence.ph.mid
 
 #increase in seroneg vaccinees
-1.57/1.09
-.404/.174#severe
+vnh/cnh
+vns/cns #severe
+
 #RR in seropo / seroneg controls
-1.88/1.09
-.48/.174#severe
+cph/cnh
+cps/cns #severe
+
 #reduction in seropos vaccinees
-1-0.375/1.88
-1-.075/.48#severe
+1-vph/cph
+1-vps/cps#severe
 
 #cases averted in seropos vacc per 1 seroneg vacc case
-sp*(1.88-.375) / ((1-sp)*(1.57-1.09))
-sp*(.48-.075) / ((1-sp)*(.404-.174))#severe
+sp*(cph-vph) / ((1-sp)*(vnh-cnh))
+sp*(cps-vps) / ((1-sp)*(vns-cns))#severe
+
 # breakthrough among all hospitalised
-sp*.375  / (sp*.375 + (1-sp)*1.57)
-sp*.075  / (sp*.075 + (1-sp)*.404)#severe
+sp*vph  / (sp*vph + (1-sp)*vnh)
+sp*vps  / (sp*vps + (1-sp)*vns)#severe
+
 #proportion of excess cases among the cases in seronegatives
-1-1.09/1.57
-1-.174/.404#severe
+1-cnh/vnh
+1-cns/vns#severe
+
+#proportion of excess cases among all cases
+(1-(sp*vph  / (sp*vph + (1-sp)*vnh))) * (1-cnh/vnh)
+(1-(sp*vps  / (sp*vps + (1-sp)*vns))) * (1-cns/vns)#severe
 
 # proportion of cases averted through vacc
-1 - (sp*.375+(1-sp)*1.57) / (sp*1.88+(1-sp)*1.09)
-1 - (sp*.075+(1-sp)*.404) / (sp*.48+(1-sp)*.174)
+1 - (sp*vph+(1-sp)*vnh) / (sp*cph+(1-sp)*cnh)
+1 - (sp*vps+(1-sp)*vns) / (sp*cps+(1-sp)*cns)
 
 
-#calculate  proportion of cases attributeable to seronegative vaccinees
+#calculate  time dependent proportion of cases attributeable to breakthrough in seropositive, and excess cases n seronegative vaccinees
   #proportion of excess cases among the cases in seronegatives by time
   excess.prop = 1 - subset(df.time, randomisation=="control" & serostatus=="neg")$incidence / subset(df.time, randomisation=="vacc" & serostatus=="neg")$incidence
   excess.prop = excess.prop * (excess.prop>0)
   
 df.prop = tibble(serostatus = c("neg","pos"),
-                 prop = c(0.15,.85))
+                 prop = c(1-sp,sp))
 data.time = df.time %>% merge(df.prop) %>% 
   mutate(cases = incidence*prop*830000/100) %>% 
   select(serostatus:randomisation, cases) %>%
